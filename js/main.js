@@ -1,6 +1,9 @@
-// js/main.js (with extra debugging)
+// js/main.js
 
 console.log("Gesturify script started.");
+
+// --- Configurable Server URL ---
+const SERVER_URL = window.SERVER_URL || 'http://localhost:5000/command';
 
 // --- DOM Element Selection ---
 const videoElement = document.querySelector('.input_video');
@@ -71,24 +74,27 @@ async function startCamera() {
  * @param {object} results - The hand tracking results from MediaPipe.
  */
 function onResults(results) {
-    // This log can be spammy, but it's good for checking if MediaPipe is working.
-    // console.log("onResults fired."); 
-    
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
     canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
 
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-        for (const landmarks of results.multiHandLandmarks) {
+        for (let i = 0; i < results.multiHandLandmarks.length; i++) {
+            const landmarks = results.multiHandLandmarks[i];
             drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 5 });
             drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', lineWidth: 2 });
-        }
-        
-        const gesture = classifyGesture(results.multiHandLandmarks[0]);
-        gestureDisplay.textContent = gesture || 'No Gesture';
-        
-        if (gesture) {
-            handleGesture(gesture);
+
+            // Use handedness from MediaPipe results if available
+            const handedness = results.multiHandedness && results.multiHandedness[i]
+                ? results.multiHandedness[i].label
+                : 'Right';
+
+            const gesture = classifyGesture(landmarks, handedness);
+            gestureDisplay.textContent = gesture || 'No Gesture';
+
+            if (gesture) {
+                handleGesture(gesture);
+            }
         }
     } else {
         gestureDisplay.textContent = 'No Hand Detected';
@@ -99,19 +105,54 @@ function onResults(results) {
 /**
  * Analyzes hand landmarks to classify the current gesture.
  * @param {Array} landmarks - An array of 21 hand landmark objects.
+ * @param {string} handedness - 'Left' or 'Right' hand label from MediaPipe.
  * @returns {string|null} The name of the classified gesture or null if none.
  */
-function classifyGesture(landmarks) {
+function classifyGesture(landmarks, handedness = 'Right') {
+    /**
+     * Determines if a finger is extended based on its tip and dip landmark indices.
+     * @param {number} tip - The index of the finger tip landmark (e.g., 8 for index finger).
+     * @param {number} dip - The index of the finger's distal interphalangeal joint landmark (e.g., 6 for index finger).
+     * Uses MediaPipe's hand landmark indices: https://google.github.io/mediapipe/solutions/hands.html
+     * @returns {boolean} True if the finger is extended (tip above dip in y-axis).
+     */
     const isFingerExtended = (tip, dip) => landmarks[tip].y < landmarks[dip].y;
 
+    // Define finger extension variables before use
     const isIndexExtended = isFingerExtended(8, 6);
     const isMiddleExtended = isFingerExtended(12, 10);
     const isRingExtended = isFingerExtended(16, 14);
     const isPinkyExtended = isFingerExtended(20, 18);
-    const isThumbOut = landmarks[4].x < landmarks[3].x; 
+
+    // Adjust thumb extension logic based on handedness
+    let isThumbOut;
+    if (handedness === 'Left') {
+        isThumbOut = landmarks[4].x > landmarks[3].x;
+    } else {
+        isThumbOut = landmarks[4].x < landmarks[3].x;
+    }
+
     const areFingersClosed = !isIndexExtended && !isMiddleExtended && !isRingExtended && !isPinkyExtended;
 
-    if (areFingersClosed && landmarks[4].y < landmarks[3].y && landmarks[4].y < landmarks[2].y) return 'Thumbs Up';
+    // Adjust thumbs up logic for handedness
+    let isThumbsUp;
+    if (handedness === 'Left') {
+        // For left hand, thumb tip (4) should be above (y <) and to the right (x >) of thumb joints (3, 2)
+        isThumbsUp = areFingersClosed &&
+            landmarks[4].y < landmarks[3].y &&
+            landmarks[4].y < landmarks[2].y &&
+            landmarks[4].x > landmarks[3].x &&
+            landmarks[4].x > landmarks[2].x;
+    } else {
+        // For right hand, thumb tip (4) should be above (y <) and to the left (x <) of thumb joints (3, 2)
+        isThumbsUp = areFingersClosed &&
+            landmarks[4].y < landmarks[3].y &&
+            landmarks[4].y < landmarks[2].y &&
+            landmarks[4].x < landmarks[3].x &&
+            landmarks[4].x < landmarks[2].x;
+    }
+
+    if (isThumbsUp) return 'Thumbs Up';
     if (isIndexExtended && isMiddleExtended && isRingExtended && isPinkyExtended) return 'Open Palm';
     if (isIndexExtended && isMiddleExtended && !isRingExtended && !isPinkyExtended) return 'Two Fingers';
     if (isThumbOut && !isIndexExtended && !isMiddleExtended && !isRingExtended && isPinkyExtended) return 'Shaka';
@@ -147,7 +188,7 @@ function handleGesture(gesture) {
  */
 async function sendCommandToPython(gesture) {
     try {
-        const response = await fetch('http://localhost:5000/command', {
+        const response = await fetch(SERVER_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ gesture: gesture })
