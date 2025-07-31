@@ -1,50 +1,70 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Standard metadata -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gesturify – Gesture Controlled Media Player</title>
-
-    <!-- External Libraries & Styles -->
+    
+    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts for a modern look -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- MediaPipe libraries for hand tracking -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-
+    
     <style>
         body { font-family: 'Inter', sans-serif; }
-        .video-container { position: relative; }
-        .output_canvas { width: 100%; height: auto; }
+        .video-container { position: relative; width: 100%; max-width: 800px; margin: auto; background-color: #111827; }
+        .output_canvas { width: 100%; height: auto; border-radius: 0.5rem; transform: scaleX(-1); }
         .input_video { display: none; }
-        .gesture-text { position: absolute; top: 20px; left: 20px; }
+        .gesture-text { position: absolute; top: 20px; left: 20px; background-color: rgba(0, 0, 0, 0.6); color: white; padding: 10px 15px; border-radius: 0.5rem; font-size: 1.25rem; font-weight: 600; z-index: 10; }
     </style>
 </head>
 <body class="bg-gray-900 text-white">
+
     <div class="container mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
             <h1 class="text-4xl md:text-5xl font-bold">Gesturify</h1>
             <p class="text-lg md:text-xl text-gray-400 mt-2">Control Your Desktop Media With Hand Gestures</p>
         </header>
+
         <main>
             <div class="video-container shadow-2xl rounded-lg mb-8">
                 <video class="input_video"></video>
-                <canvas class="output_canvas" width="1280px" height="720px"></canvas>
-                <div id="gesture-display" class="gesture-text bg-gray-800 bg-opacity-75 p-3 rounded-lg">Initializing...</div>
-                <div id="error-display" class="hidden ...">...</div>
+                <canvas class="output_canvas" width="1280" height="720"></canvas>
+                <div id="gesture-display" class="gesture-text">Initializing Camera...</div>
+                
+                <div id="error-display" class="hidden absolute inset-0 bg-gray-900 bg-opacity-90 flex flex-col justify-center items-center text-center p-4 rounded-lg">
+                    <h3 class="text-2xl font-bold text-red-500 mb-2">Camera Access Denied</h3>
+                    <p class="text-gray-300">Gesturify needs access to your webcam to work. <br> Please reload the page and grant camera permission.</p>
+                </div>
             </div>
-            <div class="bg-gray-800 p-4 rounded-lg ...">
-                 <h2>Control Status</h2>
-                 <p id="media-status" ...>Waiting for gesture...</p>
+
+            <div class="bg-gray-800 p-4 rounded-lg shadow-lg text-center">
+                 <h2 class="text-xl font-bold mb-2">Control Status</h2>
+                 <p id="media-status" class="text-lg text-gray-400">Waiting for gesture...</p>
+                 <p class="text-sm text-gray-500 mt-2">Make sure your media player (Spotify, VLC, etc.) is the active window.</p>
             </div>
+
             <div class="mt-8 bg-gray-800 p-6 rounded-lg">
-                <h2>Gesture Guide</h2>
-                <div class="grid ...">...</div>
+                <h2 class="text-2xl font-bold mb-4 text-center">Gesture Guide</h2>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
+                    <div class="p-4 bg-gray-700 rounded-lg"><p class="text-4xl">👍/🖐</p><p class="mt-2 font-semibold">Play/Pause</p></div>
+                    <div class="p-4 bg-gray-700 rounded-lg"><p class="text-4xl">👉</p><p class="mt-2 font-semibold">Next Track</p></div>
+                    <div class="p-4 bg-gray-700 rounded-lg"><p class="text-4xl">✌️</p><p class="mt-2 font-semibold">Previous Track</p></div>
+                    <div class="p-4 bg-gray-700 rounded-lg"><p class="text-4xl">🤙</p><p class="mt-2 font-semibold">Volume Up</p></div>
+                    <div class="p-4 bg-gray-700 rounded-lg"><p class="text-4xl">👇</p><p class="mt-2 font-semibold">Volume Down</p></div>
+                    <div class="p-4 bg-gray-700 rounded-lg"><p class="text-4xl">👊</p><p class="mt-2 font-semibold">Stop</p></div>
+                </div>
             </div>
         </main>
     </div>
+
     <script src="./js/main.js" type="module"></script>
 </body>
 </html>
